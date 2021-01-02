@@ -19,7 +19,7 @@ pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
             }
         }
     }
-
+    
     Ok(0)
 }
 

@@ -10,7 +10,7 @@ impl InstructionSet {
         InstructionSet { instructions }
     }
 
-    fn get_seat(&self) -> Result<Seat, SeatError> {
+    pub fn get_seat(&self) -> Result<Seat, SeatError> {
         let mut bottom_range = 0;
         let mut top_range = 127;
 

@@ -5,17 +5,25 @@ use std::path::Path;
 
 mod instructions;
 
-use instructions::Instruction;
+use instructions::{InstructionSet};
 
-pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
+pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
     let filename = config.filename;
 
+    let mut max_seat_id = 0;
+
     let lines = read_lines(filename)?;
-    for _line in lines {
-        // do something with lines
+    for line in lines {
+        let instruction_set = line?.parse::<InstructionSet>()?;
+        let seat = instruction_set.get_seat()?;
+        let seat_id = seat.id();
+
+        if seat_id > max_seat_id {
+            max_seat_id = seat_id;
+        }
     }
 
-    Ok(0)
+    Ok(max_seat_id)
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

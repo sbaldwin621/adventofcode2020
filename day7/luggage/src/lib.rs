@@ -3,18 +3,23 @@ use std::fs::{File};
 use std::io::{self, BufRead};
 use std::path::Path;
 
-mod bag;
+use rules::{Rule, RuleSet};
+
 mod rules;
 
 pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
     let filename = config.filename;
 
+    let mut ruleset = RuleSet::new();
+
     let lines = read_lines(filename)?;
     for line in lines {
-        // do something with linesp
+        ruleset.add_rule(line?.parse::<Rule>()?);
     }
 
-    Ok(0)
+    let count = ruleset.count_combinations("shiny gold");
+
+    Ok(count)
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

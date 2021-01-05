@@ -1,7 +1,69 @@
-use std::{collections::HashSet, error::Error, fmt::Display, str::FromStr};
+use std::{error::Error, fmt::Display, str::FromStr};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+
+#[derive(Debug, PartialEq)]
+pub struct RuleSet {
+    nodes: Vec<RuleSetNode>,
+    edges: Vec<RuleSetEdge>
+}
+
+impl RuleSet {
+    pub fn new() -> RuleSet {
+        RuleSet { nodes: Vec::new(), edges: Vec::new() }
+    }
+
+    pub fn add_rule(&mut self, rule: Rule) {
+        let identifier = rule.identifier;
+
+        if let Contains::Some(other_bags) = rule.contains {
+            for (count, to) in other_bags {
+                self.edges.push(RuleSetEdge { from: identifier.clone(), to, count });
+            }
+        }
+        
+        self.nodes.push(RuleSetNode { identifier });
+    }
+
+    pub fn count_combinations(&self, target: &str) -> usize {
+        let mut count = 0;
+
+        for node in &self.nodes {
+            if self.is_valid(&node.identifier, target) {
+                count = count + 1;
+            }
+        }
+
+        count
+    }
+
+    fn is_valid(&self, identifier: &str, target: &str) -> bool {
+        for edge in &self.edges {
+            if edge.from == identifier {
+                if edge.to == target {
+                    return true;
+                } else if self.is_valid(&edge.to, target) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct RuleSetNode {
+    identifier: String
+}
+
+#[derive(Debug, PartialEq)]
+struct RuleSetEdge {
+    from: String,
+    to: String,
+    count: usize
+}
 
 // light red bags contain 1 bright white bag, 2 muted yellow bags.
 // faded blue bags contain no other bags.
@@ -101,5 +163,23 @@ mod tests {
         }, rule);
 
         println!("{:?}", rule);
+    }
+
+    #[test]
+    fn example_ruleset() {
+        let mut ruleset = RuleSet::new();
+        ruleset.add_rule("light red bags contain 1 bright white bag, 2 muted yellow bags.".parse::<Rule>().unwrap());
+        ruleset.add_rule("dark orange bags contain 3 bright white bags, 4 muted yellow bags.".parse::<Rule>().unwrap());
+        ruleset.add_rule("bright white bags contain 1 shiny gold bag.".parse::<Rule>().unwrap());
+        ruleset.add_rule("muted yellow bags contain 2 shiny gold bags, 9 faded blue bags.".parse::<Rule>().unwrap());
+        ruleset.add_rule("shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.".parse::<Rule>().unwrap());
+        ruleset.add_rule("dark olive bags contain 3 faded blue bags, 4 dotted black bags.".parse::<Rule>().unwrap());
+        ruleset.add_rule("vibrant plum bags contain 5 faded blue bags, 6 dotted black bags.".parse::<Rule>().unwrap());
+        ruleset.add_rule("faded blue bags contain no other bags.".parse::<Rule>().unwrap());
+        ruleset.add_rule("dotted black bags contain no other bags.".parse::<Rule>().unwrap());
+
+        let count = ruleset.count_combinations("shiny gold");
+
+        assert_eq!(4, count);
     }
 }

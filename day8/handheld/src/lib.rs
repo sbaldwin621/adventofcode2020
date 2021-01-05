@@ -5,17 +5,23 @@ use std::fs::{File};
 use std::io::{self, BufRead};
 use std::path::Path;
 
+use boot::{Instruction, run_program};
+
 mod boot;
 
-pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
+pub fn run(config: Config) -> Result<isize, Box<dyn Error>> {
     let filename = config.filename;
 
+    let mut program = Vec::new();
+
     let lines = read_lines(filename)?;
-    for _line in lines {
-        // do something with lines
+    for line in lines {
+        program.push(line?.parse::<Instruction>()?);
     }
 
-    Ok(0)
+    let result = run_program(&program);
+
+    Ok(result)
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

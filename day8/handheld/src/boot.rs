@@ -1,4 +1,35 @@
-use std::{error::Error, fmt::Display, str::FromStr};
+use std::{collections::HashSet, error::Error, fmt::Display, str::FromStr};
+
+pub fn run_program(program: &Vec<Instruction>) -> isize {
+    let mut accum = 0;
+    let mut program_counter: isize = 0;
+
+    let mut executed_lines = HashSet::new();
+
+    loop {
+        if executed_lines.contains(&program_counter) {
+            break;
+        }
+
+        executed_lines.insert(program_counter);
+        let instruction = program.get(program_counter as usize).unwrap();
+
+        match instruction {
+            Instruction::Noop => {
+                program_counter = program_counter + 1;
+            },
+            Instruction::Acc(value) => { 
+                accum = accum + value; 
+                program_counter = program_counter + 1;
+            },
+            Instruction::Jump(value) => {
+                program_counter = program_counter + value;
+            }
+        }
+    }
+
+    accum
+}
 
 pub struct Line {
     line_number: usize,

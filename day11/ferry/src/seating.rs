@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt::Display;
 use std::iter;
 use std::str::FromStr;
+use std::time::UNIX_EPOCH;
 
 #[derive(Debug)]
 pub struct SeatingChart {
@@ -33,8 +34,101 @@ impl SeatingChart {
         Ok(SeatingChart { rows, swap })
     }
 
-    pub fn step(&mut self) {
-        todo!()
+    // If a seat is empty (L) and there are no occupied seats adjacent to it, the seat becomes occupied.
+    // If a seat is occupied (#) and four or more seats adjacent to it are also occupied, the seat becomes empty.
+    // Otherwise, the seat's state does not change.
+    pub fn step(&mut self) -> usize {
+        let mut change_count = 0;
+
+        for y in 0..self.rows.len() {
+            let row = &self.rows[y];
+            
+            for x in 0..row.len() {
+                let seat = &row.seats[x];
+                
+                let nw = if x > 0 && y > 0 {
+                    self.value_by_coords(x - 1, y - 1)
+                } else {
+                    0
+                };
+                let n = if y > 0 {
+                    self.value_by_coords(x, y - 1)
+                } else {
+                    0
+                };
+                let ne = if y > 0 {
+                    self.value_by_coords(x + 1, y - 1)
+                } else {
+                    0
+                };
+                let w = if x > 0 {
+                    self.value_by_coords(x - 1, y)
+                } else {
+                    0
+                };
+                let e = self.value_by_coords(x + 1, y);
+                let sw = if x > 0 { 
+                    self.value_by_coords(x - 1, y + 1)
+                } else {
+                    0
+                };
+                let s = self.value_by_coords(x, y + 1);
+                let se = self.value_by_coords(x + 1, y + 1);
+
+                let occupied_neighbors = nw + n + ne + w + e + sw + s + se;
+
+                let next_status = match seat {
+                    SeatingChartStatus::Unoccupied => {
+                        if occupied_neighbors == 0 {
+                            SeatingChartStatus::Occupied
+                        } else {
+                            SeatingChartStatus::Unoccupied
+                        }
+                    },
+                    SeatingChartStatus::Occupied => {
+                        if occupied_neighbors >= 4 {
+                            SeatingChartStatus::Unoccupied
+                        } else {
+                            SeatingChartStatus::Occupied
+                        }
+                    },
+                    _ => { seat.clone() }
+                };
+
+                if seat != &next_status {
+                    change_count = change_count + 1;
+                }
+
+                self.swap[y].seats[x] = next_status;
+            }
+        }
+
+        std::mem::swap(&mut self.rows, &mut self.swap);
+
+        change_count
+    }
+
+    fn get_by_coords(&self, x: usize, y: usize) -> Option<&SeatingChartStatus> {
+        self.rows.get(y)?.seats.get(x)
+    }
+
+    fn value_by_coords(&self, x: usize, y: usize) -> usize {
+        self.get_by_coords(x, y)
+            .map(|status| if status == &SeatingChartStatus::Occupied { 1 } else { 0 })
+            .unwrap_or(0)
+    }
+
+    pub fn occupied_count(&self) -> usize {
+        let mut count = 0;
+        for row in &self.rows { 
+            for seat in &row.seats {
+                if seat == &SeatingChartStatus::Occupied {
+                    count = count + 1;
+                }
+            }
+        }
+        
+        count
     }
 }
 
@@ -71,6 +165,23 @@ impl Display for CreateSeatingChartError {
 }
 
 impl Error for CreateSeatingChartError { }
+
+#[derive(Debug)]
+pub enum CalculateSeatingChartStepError {
+    ArgumentEmpty,
+    UnevenRows
+}
+
+impl Display for CalculateSeatingChartStepError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", match self {
+            CalculateSeatingChartStepError::ArgumentEmpty => "argument cannot be empty",
+            CalculateSeatingChartStepError::UnevenRows => "rows must be of equal width"
+        })
+    }
+}
+
+impl Error for CalculateSeatingChartStepError { }
 
 #[derive(Debug)]
 pub struct SeatingChartRow {
@@ -120,7 +231,7 @@ impl FromStr for SeatingChartRow {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SeatingChartStatus {
     Unoccupied,
     Occupied,

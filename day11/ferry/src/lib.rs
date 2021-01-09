@@ -10,7 +10,7 @@ use seating::{SeatingChart, SeatingChartRow};
 pub mod config;
 mod seating;
 
-pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
+pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
     let filename = config.filename;
 
     let mut rows = Vec::new();
@@ -19,12 +19,22 @@ pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
     for line in lines {
         rows.push(line?.parse::<SeatingChartRow>()?);
     }
-    
-    let chart = SeatingChart::new(rows)?;
 
-    println!("{}", chart);
+    let mut chart = SeatingChart::new(rows)?;
+    println!("initial:\n{}", chart);
 
-    Ok(0)
+    for step in 1.. {
+        let change_count = chart.step();
+        println!("step {}, {} changes:\n{}", step, change_count, chart);
+
+        if change_count == 0 {
+            break;
+        }
+    }
+
+    let occupied_count = chart.occupied_count();
+
+    Ok(occupied_count)
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

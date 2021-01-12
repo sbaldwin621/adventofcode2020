@@ -8,120 +8,51 @@ pub struct Schedule {
 }
 
 impl Schedule {
-    // 17,x,13,19 is 3417
+    /*
+    Implementation of Chinese remainder theorem translated from Python as described here:
+        https://shainer.github.io/crypto/math/2017/10/22/chinese-remainder-theorem.html
 
-    // x = 0 (mod 17) [17 - 0]
-    // x = 11 (mod 13) [13 - 2]
-    // x = 16 (mod 19) [19 - 3]
-    // x = 3417 + 4199k
+    Input:
+    7,13,x,x,59,x,31,19
     
-    // 17 * 13 * 19 = 
-    
-    // 16 mod 19 = 16, 35, 54
-    
+    Translates to:
+    x = 0 (mod 7)   // index = 0
+    x = 12 (mod 13) // index = 1, 13 - 1 = 12
+    x = 55 (mod 59) // index = 4, 59 - 4 = 55
+    x = 25 (mod 31) // index = 6, 31 - 6 = 25
+    x = 12 (mod 19) // index = 7, 19 - 7 = 12
 
+    Below algorithm gives result:
+    1068781
+    */
     pub fn find_earliest_time(&self) -> i64 {
         let product = self.buses.iter().fold(1, |accum, bus| match bus { 
             BusId::Specific(bus_id) => accum * bus_id,
             _ => accum
         });
 
-        let n = self.buses.iter().enumerate().filter_map(|(i, bus)| match bus { 
-            BusId::Specific(bus_id) => Some(*bus_id),
-            _ => None
-        }).collect::<Vec<_>>();
-
-        let a = self.buses.iter().enumerate().filter_map(|(i, bus)| match bus { 
-            BusId::Specific(bus_id) => Some((*bus_id - (i as i64)) % bus_id),
-            _ => None
-        }).collect::<Vec<_>>();
-
-        let chinese_remainder = Schedule::chinese_remainder_euclid(n, product, a);
-
-        let result;
-        if chinese_remainder > 0 {
-            result = chinese_remainder % product;
-        } else {
-            result = product + (chinese_remainder % product);
-        }
-        // 1068781
-
-        println!("{}", result);
-
-        todo!()
-    }
-
-    // fn max_bus_id(&self) -> Option<(usize, usize)> {
-    //     let mut max_id: Option<(usize, usize)> = None;
-
-    //     for i in 0..self.buses.len() {
-    //         if let BusId::Specific(specific_bus_id) = self.buses[i] {
-    //             if let Some((_, max_id_value)) = max_id {
-    //                 if specific_bus_id > max_id_value {
-    //                     max_id = Some((i, specific_bus_id));
-    //                 }
-    //             } else {
-    //                 max_id = Some((i, specific_bus_id));
-    //             }
-    //         } 
-    //     }
-
-    //     max_id
-    // }
-    
-    // fn check_timestamp(&self, timestamp: usize) -> usize {
-    //     let mut max_remainder = 0;
-
-    //     for i in 0..self.buses.len() {
-    //         if let BusId::Specific(bus_id) = self.buses[i] {
-    //             let remainder = (timestamp + i) % bus_id;
-    //             if remainder > max_remainder {
-    //                 max_remainder = remainder;
-    //             }
-    //         }
-    //     }
-
-    //     max_remainder
-    // }
-
-    /*
-    def ChineseRemainderEuclid(n, N, a):
-    result = 0
-
-    for i in range(len(n)):
-        ai = a[i]
-        ni = n[i]
-
-        _, _, si = ExtendedEuclid(ni, N // ni)
-        result += ai * si * (N // ni)
-
-    return LeastPositiveEquivalent(result, N)
-    */
-    fn chinese_remainder_euclid(n: Vec<i64>, N: i64, a: Vec<i64>) -> i64 {
         let mut result = 0;
 
-        for i in 0..n.len() {
-            let ai = a[i];
-            let ni = n[i];
+        for (i, bus) in self.buses.iter().enumerate() {
+            if let BusId::Specific(bus_id) = bus {
+                let ai = (bus_id - (i as i64)) % bus_id;
+                let ni = *bus_id;
 
-            let (_, _, si) = Schedule::extended_euclid(ni, N / ni);
-            result = result + ai * si * (N / ni);
+                println!("x = {} (mod {})", ai, ni);
+    
+                let (_, _, si) = Schedule::extended_euclid(ni, product / ni);
+                result = result + ai * si * (product / ni);
+            }            
         }
 
-        result
+        // Algorithm can give negative number, need minimum positive answer for problem
+        if result > 0 {
+            result % product
+        } else {
+            product + (result % product)
+        }
     }
 
-    /*
-    def ExtendedEuclid(x, y):
-    x0, x1, y0, y1 = 1, 0, 0, 1
-
-    while y > 0:
-        q, x, y = math.floor(x / y), y, x % y
-        x0, x1 = x1, x0 - q * x1
-        y0, y1 = y1, y0 - q * y1
-
-    return q, x0, y0  # gcd and the two coefficients
-    */
     fn extended_euclid(x: i64, y: i64) -> (i64, i64, i64) {
         let mut q = 0;
 
@@ -150,16 +81,6 @@ impl Schedule {
         }
 
         (q, x0, y0)
-    } 
-
-    fn invmod(a: i64, m: i64) -> i64 {
-        let (g, x, y) = Schedule::extended_euclid(a, m);
-
-        if g != 1 {
-            panic!("modular inverse does not exist");
-        }
-        
-        x % m
     }
 }
 
@@ -213,15 +134,3 @@ impl Display for ParseBusIdError {
 }
 
 impl Error for ParseBusIdError { }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // #[test]
-    // fn check_timestamp() {
-    //     let schedule = "7,13,x,x,59,x,31,19".parse::<Schedule>().unwrap();
-
-    //     assert_eq!(0, schedule.check_timestamp(1068781));
-    // }
-}

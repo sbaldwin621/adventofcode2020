@@ -10,7 +10,7 @@ use schedule::Schedule;
 pub mod config;
 mod schedule;
 
-pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
+pub fn run(config: Config) -> Result<i64, Box<dyn Error>> {
     let filename = config.filename;
 
     let lines = read_lines(filename)?;

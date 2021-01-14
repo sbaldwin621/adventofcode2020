@@ -5,19 +5,27 @@ use std::io::{self, BufRead};
 use std::path::Path;
 
 use config::Config;
+use program::{Instruction, Program};
 
 pub mod config;
 mod program;
 
-pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
+pub fn run(config: Config) -> Result<u64, Box<dyn Error>> {
     let filename = config.filename;
 
+    let mut instructions = Vec::new();
+
     let lines = read_lines(filename)?;
-    for _line in lines {
-        // do something with lines
+    for line in lines {
+        let instruction = line?.parse::<Instruction>()?;
+        instructions.push(instruction);
     }
 
-    Ok(0)
+    let program = Program::new(instructions);
+    
+    let sum = program.execute();
+
+    Ok(sum)
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

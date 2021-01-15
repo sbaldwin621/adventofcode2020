@@ -20,7 +20,7 @@ impl Program {
         Program { instructions }
     }
 
-    pub fn execute(&self) -> u64 {
+    pub fn execute(&self) -> Result<u64, ProgramError> {
         let mut memory: HashMap<u64, u64> = HashMap::new();
 
         let mut current_mask = None;
@@ -35,7 +35,7 @@ impl Program {
                         let masked_value = apply_mask(*value, high_mask, low_mask);
                         memory.insert(*address, masked_value);
                     } else {
-                        panic!("no mask currently set");
+                        return Err(ProgramError::NoMaskSet);   
                     }
                 }
             }
@@ -43,9 +43,24 @@ impl Program {
 
         let sum = memory.iter().fold(0, |accum, (_, v)| accum + v);
 
-        sum
+        Ok(sum)
     }
 }
+
+#[derive(Debug)]
+pub enum ProgramError {
+    NoMaskSet
+}
+
+impl Display for ProgramError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", match self {
+            ProgramError::NoMaskSet => "no mask set"
+        })
+    }
+}
+
+impl Error for ProgramError { }
 
 #[derive(Debug)]
 pub enum Instruction {
@@ -90,23 +105,23 @@ impl FromStr for Instruction {
             let address = address_str.parse::<u64>().unwrap();
             let value = value_str.parse::<u64>().unwrap();
 
-            return Ok(Instruction::Mem { address, value })
+            return Ok(Instruction::Mem { address, value });
         } else {
-            panic!("unrecognized instruction");
+            return Err(ParseInstructionError::UnrecognizedCommand);
         }
-
-        todo!()
     }
 }
 
 #[derive(Debug)]
 pub enum ParseInstructionError {
-    
+    UnrecognizedCommand
 }
 
 impl Display for ParseInstructionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        writeln!(f, "{}", match self {
+            ParseInstructionError::UnrecognizedCommand => "unrecognized command"
+        })
     }
  }
 

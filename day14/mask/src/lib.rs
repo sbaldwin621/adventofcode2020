@@ -23,7 +23,7 @@ pub fn run(config: Config) -> Result<u64, Box<dyn Error>> {
 
     let program = Program::new(instructions);
     
-    let sum = program.execute();
+    let sum = program.execute()?;
 
     Ok(sum)
 }
@@ -33,18 +33,3 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
-
-#[derive(Debug)]
-pub enum ApplicationError {
-    AnError
-}
-
-impl Display for ApplicationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", match self {
-            AnError => "an error occurred"  
-        })
-    }
-}
-
-impl Error for ApplicationError { }

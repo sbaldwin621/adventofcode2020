@@ -31,9 +31,11 @@ impl Program {
                     current_mask = Some((*high_mask, *floating_mask));
                 }
                 Instruction::Mem { address, value } => {
-                    if let Some((high_mask, low_mask)) = current_mask {
-                        // let masked_value = apply_mask(*value, high_mask, low_mask);
-                        // memory.insert(*address, masked_value);
+                    if let Some((high_mask, floating_mask)) = current_mask {
+                        let masked_addresses = apply_mask(*address, high_mask, floating_mask);
+                        for address in masked_addresses {
+                            memory.insert(address, *value);
+                        }
                     } else {
                         return Err(ProgramError::NoMaskSet);   
                     }
@@ -154,7 +156,7 @@ fn apply_mask(value: u64, high_mask: u64, floating_mask: u64) -> Vec<u64> {
 
         }
     }
-    
+
     let mut result = result.into_iter().collect::<Vec<u64>>();
     result.sort();
 

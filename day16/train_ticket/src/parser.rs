@@ -3,10 +3,25 @@ use std::ops::Range;
 use nom::combinator::map_res;
 use nom::IResult;
 use nom::bytes::complete::{tag, take_while};
-use nom::sequence::tuple;
+use nom::multi::separated_list1;
+use nom::sequence::{separated_pair, tuple};
+
+use crate::tickets::Rule;
+
+fn rule(input: &str) -> IResult<&str, Rule> {
+    let (input, identifier) = identifier(input)?;
+    let (input, _) = tag(": ")(input)?;
+    let (input, ranges) = range_list(input)?;
+
+    Ok((input, Rule::new(identifier, ranges)))
+}
+
+fn range_list(input: &str) -> IResult<&str, Vec<Range<u64>>> {
+    separated_list1(tag(" or "), range)(input)
+}
 
 fn range(input: &str) -> IResult<&str, Range<u64>> {
-    let (input, (start, _, end)) = tuple((number, tag("-"), number))(input)?;
+    let (input, (start, end)) = separated_pair(number, tag("-"), number)(input)?;
     let range = Range { start, end };
     
     Ok((input, range))
@@ -34,7 +49,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let (_, result) = range("1-5").unwrap();
+        let (_, result) = rule("class: 1-3 or 5-7").unwrap();
 
         println!("{:?}", result);
     }

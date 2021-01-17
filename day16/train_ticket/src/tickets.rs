@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 #[derive(Debug)]
 pub struct Notes {
     ruleset: Ruleset,
@@ -15,7 +17,14 @@ pub struct Ruleset {
 
 #[derive(Debug)]
 pub struct Rule {
+    name: String,
+    ranges: Vec<Range<u64>>
+}
 
+impl Rule {
+    pub fn new(name: &str, ranges: Vec<Range<u64>>) -> Rule {
+        Rule { name: name.to_string(), ranges }
+    }
 }
 
 #[derive(Debug)]

@@ -1,30 +1,23 @@
 use std::error::Error;
 use std::fmt::Display;
-use std::fs::{File};
-use std::io::{self, BufRead};
-use std::path::Path;
+use std::fs::read_to_string;
 
 use config::Config;
+use notes::Notes;
 
 pub mod config;
 mod parser;
-mod tickets;
+mod notes;
 
-pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
+pub fn run(config: Config) -> Result<u64, Box<dyn Error>> {
     let filename = config.filename;
 
-    let lines = read_lines(filename)?;
-    for _line in lines {
-        // do something with lines
-    }
+    let input = read_to_string(filename)?;
+    let notes = input.parse::<Notes>()?;
+    
+    let result = notes.get_error_rate();
 
-    Ok(0)
-}
-
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
+    Ok(result)
 }
 
 #[derive(Debug)]

@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::error::Error;
 use std::fmt::Display;
 use std::fs::{File};
@@ -11,17 +12,22 @@ pub mod config;
 mod cube;
 
 pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
-    // let filename = config.filename;
+    let filename = config.filename;
 
-    // let lines = read_lines(filename)?;
-    // for _line in lines {
-    //     // do something with lines
-    // }
+    let mut points = Vec::new();
+    let lines = read_lines(filename)?;
+    for (y, line) in (0i64..).zip(lines) {
+        for (x, c) in (0i64..).zip(line?.chars()) {
+            if c == '#' {
+                points.push((x, y, 0i64));
+            }
+        }
+    }
 
     // .#.
     // ..#
     // ###
-    let mut cube = Cube::from(vec![(1, 0, 0), (2, 1, 0), (0, 2, 0), (1, 2, 0), (2, 2, 0)]);
+    let mut cube = Cube::from(points);
 
     println!("{}", cube);
 

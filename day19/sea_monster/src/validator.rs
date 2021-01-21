@@ -1,4 +1,41 @@
 use std::collections::HashMap;
+use std::str::FromStr;
+
+use crate::parser::puzzle_input;
+
+#[derive(Debug)]
+pub struct PuzzleInput {
+    ruleset: Ruleset,
+    messages: Vec<String>
+}
+
+impl PuzzleInput {
+    pub fn new(ruleset: Ruleset, messages: Vec<String>) -> PuzzleInput {
+        PuzzleInput { ruleset, messages }
+    }
+
+    pub fn get_valid_count(&self) -> usize {
+        let mut valid_count = 0;
+
+        for message in self.messages.iter() {
+            if self.ruleset.validate(message) {
+                valid_count += 1;
+            }
+        }
+
+        valid_count
+    }
+}
+
+impl FromStr for PuzzleInput {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        puzzle_input(s)
+            .map(|(_, result)| result)
+            .map_err(|_| "failed to parse puzzle input")
+    }
+}
 
 #[derive(Debug)]
 pub struct Ruleset {
@@ -33,8 +70,6 @@ impl Ruleset {
     }
 
     fn validate_rule(&self, input: &str, i: usize, rule: &Rule) -> ValidationResult {
-        println!("evaluating {:?} ({} @ {})", rule, input, i);
-
         if i >= input.chars().count() {
             return ValidationResult::No;
         }

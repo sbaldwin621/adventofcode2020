@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 use crate::parser::puzzle_input;
@@ -57,13 +57,18 @@ impl Ruleset {
 
     pub fn validate(&self, input: &str) -> bool {
         if let Some(rule_zero) = self.rules.get(&0) {
-            if let ValidationResult::Yes(remaining) = self.validate_rule(input, &rule_zero) {
+            let mut input_set = HashSet::new();
+            input_set.insert(input);
+
+            if let ValidationResult::Yes(remaining) = self.validate_rule(input_set, &rule_zero, true) {
                 // must have consumed entire input
-                if remaining.len() == 0 {
-                    true
-                } else {
-                    false
+                for possibility in remaining {
+                    if possibility.len() == 0 {
+                        return true;
+                    }
                 }
+
+                return false;
             } else {
                 false
             }
@@ -72,50 +77,71 @@ impl Ruleset {
         }
     }
 
-    fn validate_rule<'a>(&self, input: &'a str, rule: &Rule) -> ValidationResult<'a> {
-        println!("{:?} on \"{}\"", rule, input);
+    fn validate_rule<'a>(&self, input_set: HashSet<&'a str>, rule: &Rule, expect_complete: bool) -> ValidationResult<'a> {
+        // println!("{:?} on {:?} (expect_complete: {})", rule, input_set, expect_complete);
 
         match rule {
             Rule::Character(c) => {
-                if let Some(first_char) = input.chars().nth(0) {
-                    if first_char == *c {
-                        return ValidationResult::Yes(&input[1..]); // advance a character
+                let mut result = HashSet::new();
+
+                for input in input_set {
+                    if let Some(first_char) = input.chars().nth(0) {
+                        if first_char == *c {
+                            result.insert(&input[1..]);
+                        }
                     }
                 }
 
+                if result.len() > 0 || expect_complete {
+                    return ValidationResult::Yes(result);
+                }
+                
                 return ValidationResult::No;
             }
             Rule::Reference(line_number) => {
                 if let Some(matching_rule) = self.rules.get(line_number) {
-                    self.validate_rule(input, matching_rule)
+                    self.validate_rule(input_set, matching_rule, expect_complete)
                 } else {
-                    ValidationResult::Err("no matching rule")
+                    panic!("no matching rule");
                 }
             }
             Rule::And(rules) => {
-                let mut input = input;
+                let mut and_input_set = input_set;
 
-                for rule in rules.iter() {
-                    if let ValidationResult::Yes(remaining) = self.validate_rule(input, rule) {
-                        input = remaining;
+                for (i, rule) in rules.iter().enumerate() {
+                    let expect_complete = expect_complete && i == rules.len() - 1;
+
+                    if let ValidationResult::Yes(remaining) = self.validate_rule(and_input_set, rule, expect_complete) {
+                        and_input_set = remaining;
                     } else {
                         return ValidationResult::No;
                     }
                 }
 
-                ValidationResult::Yes(input)
+                // println!("RESULT: {:?} -> {:?}", rule, and_input_set);
+
+                if and_input_set.len() > 0 {
+                    return ValidationResult::Yes(and_input_set);
+                } else {
+                    return ValidationResult::No;
+                }
             }
             Rule::Or(rules) => {
+                let mut result = HashSet::new();
+
                 for rule in rules.iter() {
-                    let result = self.validate_rule(input, rule);
-                    if let ValidationResult::Yes(remaining) = result {
-                        if remaining.len() == 0 {
-                            return result;
-                        }
+                    if let ValidationResult::Yes(remaining) = self.validate_rule(input_set.clone(), rule, expect_complete) {
+                        result.extend(remaining);
                     }
                 }
 
-                ValidationResult::No
+                // println!("RESULT: {:?} on {:?} -> {:?}", rule, input_set, result);
+
+                if result.len() > 0 {
+                    return ValidationResult::Yes(result);
+                } else {
+                    return ValidationResult::No;
+                }
             }
         }
     }
@@ -134,9 +160,8 @@ impl From<Vec<(u64, Rule)>> for Ruleset {
 }
 
 enum ValidationResult<'a> {
-    Yes(&'a str),
-    No,
-    Err(&'static str)
+    Yes(HashSet<&'a str>),
+    No
 }
 
 #[derive(Debug)]

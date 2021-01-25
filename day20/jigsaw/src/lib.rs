@@ -25,15 +25,12 @@ pub fn run(config: Config) -> Result<u64, Box<dyn Error>> {
 
     let tileset = Tileset::new(tiles);
 
-    let corners = tileset.find_corners();
+    let completed_puzzle = tileset.get_completed_puzzle();
 
-    let result = corners.iter().fold(1u64, |accum, c| accum * (*c as u64));
-    
-    println!("{:?} -> {}", corners, result);
+    let corners = [completed_puzzle.get(0), completed_puzzle.get(11), completed_puzzle.get(132), completed_puzzle.get(143)];
 
-    // println!("{:?}", tileset);
 
-    Ok(result)
+    Ok(0)
 }
 
 #[derive(Debug)]

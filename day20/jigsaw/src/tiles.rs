@@ -54,6 +54,95 @@ impl Tileset {
 
         corners
     }
+    
+    pub fn find_top_left_corner(&self) -> &TileVariation {
+        for (id, tile) in self.tiles.iter() {
+            for variation in tile.variations.iter() {
+                if !self.is_edge_shared(variation.left_edge) &&
+                   !self.is_edge_shared(variation.top_edge) {
+                    return variation;
+                }
+            }
+        }
+
+        panic!("couldn't find corner");
+    }
+
+    fn is_edge_shared(&self, edge: u32) -> bool {
+        if let Some(tiles) = self.edge_map.get(&edge) {
+            if tiles.len() == 1 {
+                return false;
+            } else {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn get_completed_puzzle(&self) -> Vec<&TileVariation> {
+        let puzzle_size = (self.tiles.len() as f64).sqrt() as usize;
+        let mut result = Vec::new();
+
+        let mut remaining_pieces = HashSet::new();
+        for (id, _) in self.tiles.iter() {
+            remaining_pieces.insert(*id);
+        }
+
+        let topleft = self.find_top_left_corner();
+        remaining_pieces.remove(&topleft.id);
+        result.push(topleft);
+
+        // Top edge
+        for x in 1..puzzle_size {
+            let piece_to_left = *result.last().unwrap();
+            let edge_to_match = piece_to_left.right_edge;
+
+            let matching_variation = remaining_pieces.iter()
+                .map(|id| self.tiles.get(id).unwrap())
+                .flat_map(|tile| tile.variations.iter())
+                .find(|variation| {
+                    !self.is_edge_shared(variation.top_edge) &&
+                    variation.left_edge == edge_to_match
+                })
+                .unwrap();
+
+            remaining_pieces.remove(&matching_variation.id);
+
+            result.push(matching_variation);
+        }
+
+        for y in 1..puzzle_size {
+            for x in 0..puzzle_size {
+                let piece_to_left = if x > 0 {
+                    result.get((y * puzzle_size + x - 1) as usize)
+                } else {
+                    None
+                };
+                let piece_above = *result.get(((y - 1) * puzzle_size + x) as usize).unwrap();
+
+                let matching_variation = remaining_pieces.iter()
+                    .map(|id| self.tiles.get(id).unwrap())
+                    .flat_map(|tile| tile.variations.iter())
+                    .find(|variation| {
+                        if let Some(piece_to_left) = piece_to_left {
+                            variation.left_edge == piece_to_left.right_edge &&
+                            variation.top_edge == piece_above.bottom_edge
+                        } else {
+                            !self.is_edge_shared(variation.left_edge) &&
+                            variation.top_edge == piece_above.bottom_edge
+                        }
+                    })
+                    .unwrap();
+
+                remaining_pieces.remove(&matching_variation.id);
+    
+                result.push(matching_variation);
+            }
+        }
+
+        result
+    }
 
     fn get_edge_map(tiles: &HashMap<u32, Tile>) -> HashMap<u32, Vec<u32>> {
         let mut edge_map: HashMap<u32, Vec<u32>> = HashMap::new();
@@ -163,9 +252,9 @@ impl TileVariation {
     }
 
     pub fn flip(&self) -> TileVariation {
-        let top_edge = self.top_edge;
+        let top_edge = TileVariation::flip_row(self.top_edge);
         let right_edge = self.left_edge;
-        let bottom_edge = self.bottom_edge;
+        let bottom_edge = TileVariation::flip_row(self.bottom_edge);
         let left_edge = self.right_edge;
 
         TileVariation::new(self.id, top_edge, right_edge, bottom_edge, left_edge)

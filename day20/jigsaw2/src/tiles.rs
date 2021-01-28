@@ -350,6 +350,26 @@ impl CompletedPuzzle {
         CompletedPuzzle::new(result, self.size)
     }
 
+    pub fn get_roughness_score(&self) -> usize {
+        let mut result = 0;
+
+        for (row, monster_row) in self.rows.iter().zip(self.monster_map.iter()) {
+            let row = *row;
+            let monster_row = *monster_row;
+
+            for n in (0..self.size * 8).rev() {
+                let is_monster = (monster_row & (1 << n)) >> n == 1;
+                let is_rough = (row & (1 << n)) >> n == 1;
+
+                if is_rough && !is_monster {
+                    result += 1;
+                }
+            }
+        }
+
+        result
+    }
+
     fn calculate_rows(tiles: &Vec<TileVariation>, size: usize) -> Vec<u128> {
         const ROW_MASK: u32 = 0b0111111110;
 

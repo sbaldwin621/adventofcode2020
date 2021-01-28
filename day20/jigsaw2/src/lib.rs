@@ -36,7 +36,9 @@ pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
         current_puzzle = current_puzzle.rotate();
     }
 
-    let result = current_puzzle.monster_count;
+    println!("{}", current_puzzle);
+
+    let result = current_puzzle.get_roughness_score();
 
     Ok(result)
 }

@@ -6,7 +6,7 @@ use std::path::Path;
 use std::thread::current;
 
 use config::Config;
-use tiles::{Tile, Tileset};
+use tiles::{CompletedPuzzle, Tile, Tileset};
 
 pub mod config;
 mod tiles;
@@ -26,21 +26,37 @@ pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
     let tileset = Tileset::new(tiles);
 
     let completed_puzzle = tileset.get_completed_puzzle()?;
+    let completed_puzzle = find_puzzle_with_monsters(completed_puzzle);
 
-    let mut current_puzzle = completed_puzzle;
-    for _ in 0..4 {
-        if current_puzzle.monster_count > 0 {
-            break;
-        }
+    println!("{}", completed_puzzle);
 
-        current_puzzle = current_puzzle.rotate();
-    }
-
-    println!("{}", current_puzzle);
-
-    let result = current_puzzle.get_roughness_score();
+    let result = completed_puzzle.get_roughness_score();
 
     Ok(result)
+}
+
+fn find_puzzle_with_monsters(puzzle: CompletedPuzzle) -> CompletedPuzzle {
+    let mut puzzle = puzzle;
+
+    for _ in 0..4 {
+        if puzzle.monster_count > 0 {
+            return puzzle;
+        }
+
+        puzzle = puzzle.rotate();
+    }
+
+    puzzle = puzzle.flip();
+
+    for _ in 0..4 {
+        if puzzle.monster_count > 0 {
+            return puzzle;
+        }
+
+        puzzle = puzzle.rotate();
+    }
+
+    puzzle
 }
 
 #[derive(Debug)]

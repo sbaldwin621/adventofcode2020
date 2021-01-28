@@ -331,6 +331,23 @@ impl CompletedPuzzle {
 
         CompletedPuzzle { tiles, size, rows, monster_map, monster_count }
     }
+
+    pub fn flip(&self) -> CompletedPuzzle {
+        let mut result = Vec::new();
+
+        for y in 0..self.size {
+            for x in 0..self.size {
+                let new_x = self.size - x - 1;
+
+                let tile = self.tiles.get(y * self.size + new_x).unwrap();
+                let flipped_tile = tile.flip();
+
+                result.push(flipped_tile);
+            }
+        }
+
+        CompletedPuzzle::new(result, self.size)
+    }
     
     pub fn rotate(&self) -> CompletedPuzzle {
         let mut result = Vec::new();
@@ -441,9 +458,9 @@ impl CompletedPuzzle {
                         if next_next_row & shifted_seamonster2 == shifted_seamonster2 {
                             count += 1;
 
-                            monster_map[y] = shifted_seamonster0;
-                            monster_map[y + 1] = shifted_seamonster1;
-                            monster_map[y + 2] = shifted_seamonster2;
+                            monster_map[y] |= shifted_seamonster0;
+                            monster_map[y + 1] |= shifted_seamonster1;
+                            monster_map[y + 2] |= shifted_seamonster2;
                         }
                     }
                 }

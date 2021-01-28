@@ -25,12 +25,19 @@ pub fn run(config: Config) -> Result<u64, Box<dyn Error>> {
 
     let tileset = Tileset::new(tiles);
 
-    let completed_puzzle = tileset.get_completed_puzzle();
+    let completed_puzzle = tileset.get_completed_puzzle()?;
 
-    let corners = [completed_puzzle.get(0), completed_puzzle.get(11), completed_puzzle.get(132), completed_puzzle.get(143)];
+    let corners = [
+        completed_puzzle.get(0), completed_puzzle.get(11), completed_puzzle.get(132), completed_puzzle.get(143)
+    ];
 
-
-    Ok(0)
+    let result =
+        corners[0].unwrap().id as u64 *
+        corners[1].unwrap().id as u64 *
+        corners[2].unwrap().id as u64 *
+        corners[3].unwrap().id as u64;
+    
+    Ok(result)
 }
 
 #[derive(Debug)]

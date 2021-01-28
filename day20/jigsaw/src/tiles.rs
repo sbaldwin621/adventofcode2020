@@ -9,11 +9,13 @@ const RIGHT_EDGE_MASK: u32 = 0b0000000001;
 #[derive(Debug)]
 pub struct Tileset {
     pub tiles: HashMap<u32, Tile>,
+    pub size: usize,
     edge_map: HashMap<u32, Vec<u32>>
 }
 
 impl Tileset {
     pub fn new(tiles: Vec<Tile>) -> Tileset {
+        let size = (tiles.len() as f64).sqrt() as usize;
         let mut tile_map = HashMap::new();
 
         for tile in tiles {
@@ -21,67 +23,11 @@ impl Tileset {
         }
 
         let edge_map = Tileset::get_edge_map(&tile_map);
-
-        println!("{:?}", edge_map);
-
-        Tileset { tiles: tile_map, edge_map }
+        
+        Tileset { tiles: tile_map, size, edge_map }
     }
 
-    pub fn find_corners(&self) -> Vec<u32> {
-        let mut corners = Vec::new();
-
-        for (id, tile) in self.tiles.iter() {
-            let mut max_shared_edge_count = 0;
-
-            for variation in tile.variations.iter() {
-                let mut shared_edge_count = 0;
-                for edge in variation.edges().iter() {
-                    let tile_count = self.edge_map.get(edge).unwrap().len() - 1;
-                    if tile_count > 0 {
-                        shared_edge_count += 1;
-                    }
-                }
-
-                if shared_edge_count > max_shared_edge_count {
-                    max_shared_edge_count = shared_edge_count;
-                }
-            }
-
-            if max_shared_edge_count == 2 {
-                corners.push(*id);
-            }
-        }
-
-        corners
-    }
-    
-    pub fn find_top_left_corner(&self) -> &TileVariation {
-        for (id, tile) in self.tiles.iter() {
-            for variation in tile.variations.iter() {
-                if !self.is_edge_shared(variation.left_edge) &&
-                   !self.is_edge_shared(variation.top_edge) {
-                    return variation;
-                }
-            }
-        }
-
-        panic!("couldn't find corner");
-    }
-
-    fn is_edge_shared(&self, edge: u32) -> bool {
-        if let Some(tiles) = self.edge_map.get(&edge) {
-            if tiles.len() == 1 {
-                return false;
-            } else {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn get_completed_puzzle(&self) -> Vec<&TileVariation> {
-        let puzzle_size = (self.tiles.len() as f64).sqrt() as usize;
+    pub fn get_completed_puzzle(&self) -> Result<Vec<&TileVariation>, PuzzleError> {
         let mut result = Vec::new();
 
         let mut remaining_pieces = HashSet::new();
@@ -89,12 +35,14 @@ impl Tileset {
             remaining_pieces.insert(*id);
         }
 
-        let topleft = self.find_top_left_corner();
+        let topleft = self.find_top_left_corner()
+            .ok_or(PuzzleError::CouldntFindTopLeftCorner)?;
+        
         remaining_pieces.remove(&topleft.id);
         result.push(topleft);
 
         // Top edge
-        for x in 1..puzzle_size {
+        for x in 1..self.size {
             let piece_to_left = *result.last().unwrap();
             let edge_to_match = piece_to_left.right_edge;
 
@@ -105,21 +53,21 @@ impl Tileset {
                     !self.is_edge_shared(variation.top_edge) &&
                     variation.left_edge == edge_to_match
                 })
-                .unwrap();
-
+                .ok_or(PuzzleError::CouldFindMatch)?;
+            
             remaining_pieces.remove(&matching_variation.id);
 
             result.push(matching_variation);
         }
 
-        for y in 1..puzzle_size {
-            for x in 0..puzzle_size {
+        for y in 1..self.size {
+            for x in 0..self.size {
                 let piece_to_left = if x > 0 {
-                    result.get((y * puzzle_size + x - 1) as usize)
+                    result.get((y * self.size + x - 1) as usize)
                 } else {
                     None
                 };
-                let piece_above = *result.get(((y - 1) * puzzle_size + x) as usize).unwrap();
+                let piece_above = *result.get(((y - 1) * self.size + x) as usize).unwrap();
 
                 let matching_variation = remaining_pieces.iter()
                     .map(|id| self.tiles.get(id).unwrap())
@@ -141,9 +89,9 @@ impl Tileset {
             }
         }
 
-        result
+        Ok(result)
     }
-
+    
     fn get_edge_map(tiles: &HashMap<u32, Tile>) -> HashMap<u32, Vec<u32>> {
         let mut edge_map: HashMap<u32, Vec<u32>> = HashMap::new();
 
@@ -159,7 +107,49 @@ impl Tileset {
 
         edge_map
     }
+
+    fn find_top_left_corner(&self) -> Option<&TileVariation> {
+        for (_, tile) in self.tiles.iter() {
+            for variation in tile.variations.iter() {
+                if !self.is_edge_shared(variation.left_edge) &&
+                   !self.is_edge_shared(variation.top_edge) {
+                    return Some(variation);
+                }
+            }
+        }
+
+        None
+    }
+
+    fn is_edge_shared(&self, edge: u32) -> bool {
+        if let Some(tiles) = self.edge_map.get(&edge) {
+            if tiles.len() == 1 {
+                return false;
+            } else {
+                return true;
+            }
+        }
+
+        false
+    }
 }
+
+#[derive(Debug)]
+pub enum PuzzleError {
+    CouldntFindTopLeftCorner,
+    CouldFindMatch
+}
+
+impl Display for PuzzleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", match self {
+            PuzzleError::CouldntFindTopLeftCorner => "couldn't find top-left corner",
+            PuzzleError::CouldFindMatch => "couldn't find match"
+        })
+    }
+}
+
+impl Error for PuzzleError { }
 
 #[derive(Debug)]
 pub struct Tile {
@@ -176,12 +166,11 @@ impl Tile {
     }
 
     fn calculate_variations(id: u32, rows: &Vec<u32>) -> Vec<TileVariation> {
-        let (top_edge, right_edge, bottom_edge, left_edge) = Tile::calculate_edges(&rows);
 
         let mut variations = Vec::new();
 
         // Normal
-        let original = TileVariation::new(id, top_edge, right_edge, bottom_edge, left_edge);
+        let original = TileVariation::new(id, rows.clone());
         let rotated = original.rotate();
         let rotated2 = rotated.rotate();
         let rotated3 = rotated2.rotate();
@@ -202,6 +191,93 @@ impl Tile {
         variations
     }
 
+    fn get_unique_edges(variations: &Vec<TileVariation>) -> HashSet<u32> {
+        let mut edges = HashSet::new();
+
+        for variation in variations.iter() {
+            edges.insert(variation.top_edge);
+            edges.insert(variation.right_edge);
+            edges.insert(variation.bottom_edge);
+            edges.insert(variation.left_edge);
+        }
+        
+        edges
+    }
+}
+
+#[derive(Debug)]
+pub struct TileVariation {
+    pub id: u32,
+    pub rows: Vec<u32>,
+    pub top_edge: u32,
+    pub right_edge: u32,
+    pub bottom_edge: u32,
+    pub left_edge: u32
+}
+
+impl TileVariation {
+    pub fn new(id: u32, rows: Vec<u32>) -> TileVariation {
+        let (top_edge, right_edge, bottom_edge, left_edge) = TileVariation::calculate_edges(&rows);
+
+        TileVariation { id, rows, top_edge, right_edge, bottom_edge, left_edge }
+    }
+
+    pub fn flip(&self) -> TileVariation {
+        let rows = self.rows
+            .iter()
+            .map(|row| TileVariation::flip_row(*row))
+            .collect::<Vec<_>>();
+
+        TileVariation::new(self.id, rows)
+    }
+
+    pub fn rotate(&self) -> TileVariation {
+        let mut new_rows = Vec::new();
+
+        if self.rows.len() != 10 {
+            panic!("incorrect puzzle size");
+        }
+
+        let row_0 = self.rows.get(0).unwrap();
+        let row_1 = self.rows.get(1).unwrap();
+        let row_2 = self.rows.get(2).unwrap();
+        let row_3 = self.rows.get(3).unwrap();
+        let row_4 = self.rows.get(4).unwrap();
+        let row_5 = self.rows.get(5).unwrap();
+        let row_6 = self.rows.get(6).unwrap();
+        let row_7 = self.rows.get(7).unwrap();
+        let row_8 = self.rows.get(8).unwrap();
+        let row_9 = self.rows.get(9).unwrap();
+
+        for n in 0..10 {
+            let column_mask = 1 << (9 - n);
+            let new_row =
+                (row_0 & column_mask) >> (9 - n)      |
+                (row_1 & column_mask) >> (9 - n) << 1 | 
+                (row_2 & column_mask) >> (9 - n) << 2 | 
+                (row_3 & column_mask) >> (9 - n) << 3 | 
+                (row_4 & column_mask) >> (9 - n) << 4 | 
+                (row_5 & column_mask) >> (9 - n) << 5 | 
+                (row_6 & column_mask) >> (9 - n) << 6 | 
+                (row_7 & column_mask) >> (9 - n) << 7 | 
+                (row_8 & column_mask) >> (9 - n) << 8 |
+                (row_9 & column_mask) >> (9 - n) << 9;
+                
+            new_rows.push(new_row);
+        }
+
+        let result = TileVariation::new(self.id, new_rows);
+        
+        // println!("{}", self);
+        // println!("{}", result);
+
+        return result;
+    }
+    
+    pub fn edges(&self) -> [u32; 4] {
+        [self.top_edge, self.right_edge, self.bottom_edge, self.left_edge]
+    }
+    
     fn calculate_edges(rows: &Vec<u32>) -> (u32, u32, u32, u32) {
         let first_row = *rows.get(0).unwrap();
         let last_row = *rows.get(rows.len() - 1).unwrap();
@@ -222,62 +298,30 @@ impl Tile {
     fn flip_row(row: u32) -> u32 {
         row.reverse_bits() >> 22
     }
+}
 
-    fn get_unique_edges(variations: &Vec<TileVariation>) -> HashSet<u32> {
-        let mut edges = HashSet::new();
+impl Display for TileVariation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut result = String::new();
 
-        for variation in variations.iter() {
-            edges.insert(variation.top_edge);
-            edges.insert(variation.right_edge);
-            edges.insert(variation.bottom_edge);
-            edges.insert(variation.left_edge);
+        for row in self.rows.iter() {
+            result.push_str(&format!("{:010b}\n", row).replace("0", ".").replace("1", "#"));
         }
-        
-        edges
+
+        writeln!(f, "{}", result)
     }
 }
 
-#[derive(Debug)]
-pub struct TileVariation {
-    pub id: u32,
-    pub top_edge: u32,
-    pub right_edge: u32,
-    pub bottom_edge: u32,
-    pub left_edge: u32
+pub struct CompletedPuzzle<'a> {
+    pub tiles: Vec<&'a TileVariation>,
+    pub size: usize
 }
 
-impl TileVariation {
-    pub fn new(id: u32, top_edge: u32, right_edge: u32, bottom_edge: u32, left_edge: u32) -> TileVariation {
-        TileVariation { id, top_edge, right_edge, bottom_edge, left_edge }
-    }
-
-    pub fn flip(&self) -> TileVariation {
-        let top_edge = TileVariation::flip_row(self.top_edge);
-        let right_edge = self.left_edge;
-        let bottom_edge = TileVariation::flip_row(self.bottom_edge);
-        let left_edge = self.right_edge;
-
-        TileVariation::new(self.id, top_edge, right_edge, bottom_edge, left_edge)
-    }
-
-    pub fn rotate(&self) -> TileVariation {
-        let top_edge = TileVariation::flip_row(self.left_edge);
-        let right_edge = self.top_edge;
-        let bottom_edge = TileVariation::flip_row(self.right_edge);
-        let left_edge = self.bottom_edge;
-
-        TileVariation::new(self.id, top_edge, right_edge, bottom_edge, left_edge)
-    }
-    
-    pub fn edges(&self) -> [u32; 4] {
-        [self.top_edge, self.right_edge, self.bottom_edge, self.left_edge]
-    }
-
-    fn flip_row(row: u32) -> u32 {
-        row.reverse_bits() >> 22
+impl<'a> CompletedPuzzle<'a> {
+    pub fn new(tiles: Vec<&'a TileVariation>, size: usize) -> CompletedPuzzle<'a> {
+        CompletedPuzzle { tiles, size }
     }
 }
-
 
 impl FromStr for Tile {
     type Err = ParseTileError;
@@ -359,7 +403,7 @@ mod tests {
     #[test]
     fn flip_row() {
         let row = 0b0011010010;
-        let flipped = Tile::flip_row(row);
+        let flipped = TileVariation::flip_row(row);
 
         assert_eq!(0b0100101100, flipped);
     }

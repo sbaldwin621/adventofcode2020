@@ -11,12 +11,12 @@ mod notes;
 
 pub fn run(config: Config) -> Result<u64, Box<dyn Error>> {
     let filename = config.filename;
-
+    
     let input = read_to_string(filename)?;
     let notes = input.parse::<Notes>()?;
     
     let result = notes.get_error_rate();
-
+    
     Ok(result)
 }
 

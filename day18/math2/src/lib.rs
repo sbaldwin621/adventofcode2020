@@ -26,7 +26,7 @@ pub fn run(config: Config) -> Result<i64, Box<dyn Error>> {
         let (_, parsed) = term(&line).map_err(|_| ApplicationError::AnError)?;
         let result = parsed.eval();
         println!("{} = {}", line, result);
-
+        
         sum += result;
     }
 

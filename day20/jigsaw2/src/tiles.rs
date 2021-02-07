@@ -404,15 +404,15 @@ impl CompletedPuzzle {
 
             for x in 0..size {
                 let tile = tiles.get(y * size + x).unwrap();
-
-                let row0 = ((tile.rows.get(1).unwrap() & ROW_MASK) >> 1) as u128;
-                let row1 = ((tile.rows.get(2).unwrap() & ROW_MASK) >> 1) as u128;
-                let row2 = ((tile.rows.get(3).unwrap() & ROW_MASK) >> 1) as u128;
-                let row3 = ((tile.rows.get(4).unwrap() & ROW_MASK) >> 1) as u128;
-                let row4 = ((tile.rows.get(5).unwrap() & ROW_MASK) >> 1) as u128;
-                let row5 = ((tile.rows.get(6).unwrap() & ROW_MASK) >> 1) as u128;
-                let row6 = ((tile.rows.get(7).unwrap() & ROW_MASK) >> 1) as u128;
-                let row7 = ((tile.rows.get(8).unwrap() & ROW_MASK) >> 1) as u128;
+                
+                let row0 = ((tile.rows[1] & ROW_MASK) >> 1) as u128;
+                let row1 = ((tile.rows[2] & ROW_MASK) >> 1) as u128;
+                let row2 = ((tile.rows[3] & ROW_MASK) >> 1) as u128;
+                let row3 = ((tile.rows[4] & ROW_MASK) >> 1) as u128;
+                let row4 = ((tile.rows[5] & ROW_MASK) >> 1) as u128;
+                let row5 = ((tile.rows[6] & ROW_MASK) >> 1) as u128;
+                let row6 = ((tile.rows[7] & ROW_MASK) >> 1) as u128;
+                let row7 = ((tile.rows[8] & ROW_MASK) >> 1) as u128;
 
                 new_row0 |= row0 << ((size - x - 1) * 8);
                 new_row1 |= row1 << ((size - x - 1) * 8);

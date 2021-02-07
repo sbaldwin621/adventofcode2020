@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct FoodList {
-    food: Vec<Food>,
-    all_ingredients: HashSet<Ingredient>,
-    all_allergens: HashSet<Allergen>
+    pub food: Vec<Food>,
+    pub all_ingredients: HashSet<Ingredient>,
+    pub all_allergens: HashSet<Allergen>
 }
 
 impl FoodList {
@@ -16,12 +16,12 @@ impl FoodList {
             for ingredient in f.ingredients.iter() {
                 all_ingredients.insert(ingredient.clone());
             }
-
+            
             for allergen in f.allergens.iter() {
                 all_allergens.insert(allergen.clone());
             }
         }
-        
+
         FoodList { food, all_ingredients, all_allergens }
     }
 }

@@ -18,20 +18,11 @@ pub fn run(config: Config) -> Result<usize, Box<dyn Error>> {
     let mut input = input.parse::<PuzzleInput>()?;
 
     println!("{:?}", input);
-
-    for _ in 0..1000 {
-        match input.step() {
-            game::GameStatus::Continuing => println!("Continuing {:?}", input),
-            game::GameStatus::WinnerFound(winning_score) => {
-                println!("Winner found {}", winning_score);
-                return Ok(winning_score)
-            }
-        }
-
-
+    
+    match input.play() {
+        game::GameResult::Player1(winning_score) => Ok(winning_score),
+        game::GameResult::Player2(winning_score) => Ok(winning_score),
     }
-
-    Ok(0)
 }
 
 #[derive(Debug)]

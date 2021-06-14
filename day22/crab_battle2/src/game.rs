@@ -6,7 +6,14 @@ use crate::parser::puzzle_input;
 #[derive(Debug)]
 pub enum GameStatus {
     Continuing,
-    WinnerFound(usize)
+    Player1,
+    Player2
+}
+
+#[derive(Debug)]
+pub enum GameResult {
+    Player1(usize),
+    Player2(usize)
 }
 
 #[derive(Debug)]
@@ -22,16 +29,24 @@ impl PuzzleInput {
         PuzzleInput { player1, player2, previous_rounds }
     }
 
+    pub fn play(&mut self) -> GameResult {
+        loop {
+            let step = self.step();
+            match step {
+                GameStatus::Continuing => { }
+                GameStatus::Player1 => return GameResult::Player1(self.player1.score()),
+                GameStatus::Player2 => return GameResult::Player2(self.player2.score())
+            }
+        }
+    }
+
     pub fn step(&mut self) -> GameStatus {
         let hash1 = self.player1.hash();
         let hash2 = self.player2.hash();
         let game_hash = hash1.wrapping_mul(13) ^ hash2;
 
         if self.previous_rounds.contains(&game_hash) {
-            println!("loop detected");
-
-            let winning_score = self.player1.score();
-            return GameStatus::WinnerFound(winning_score);
+            return GameStatus::Player1;
         }
 
         self.previous_rounds.insert(game_hash);
@@ -39,28 +54,40 @@ impl PuzzleInput {
         let card1 = self.player1.flip_card();
         let card2 = self.player2.flip_card();
 
+        let step_result: GameResult;
         if card1 <= self.player1.len() && card2 <= self.player2.len() {
-            // Recursive game
-            todo!()
+            let new_player1 = self.player1.clone(card1);
+            let new_player2 = self.player2.clone(card2);
+            let mut recursive_game = PuzzleInput::new(new_player1, new_player2);
+            step_result = recursive_game.play();
         } else if card1 > card2 {
-            self.player1.add_card(card1);
-            self.player1.add_card(card2);
-
-            if self.player2.is_empty() {
-                let winning_score = self.player1.score();
-                return GameStatus::WinnerFound(winning_score);
-            }
+            step_result = GameResult::Player1(0);
         } else {
-            self.player2.add_card(card2);
-            self.player2.add_card(card1);
-
-            if self.player1.is_empty() {
-                let winning_score = self.player2.score();
-                return GameStatus::WinnerFound(winning_score);
-            }
+            step_result = GameResult::Player2(0);
         }
 
-        GameStatus::Continuing
+        match step_result {
+            GameResult::Player1(_) => {
+                self.player1.add_card(card1);
+                self.player1.add_card(card2);
+
+                if self.player2.is_empty() {
+                    GameStatus::Player1
+                } else {
+                    GameStatus::Continuing
+                }
+            },
+            GameResult::Player2(_) => {
+                self.player2.add_card(card2);
+                self.player2.add_card(card1);
+
+                if self.player1.is_empty() {
+                    GameStatus::Player2
+                } else {
+                    GameStatus::Continuing
+                }
+            }
+        }
     }
 }
 
@@ -110,6 +137,15 @@ impl Deck {
 
     pub fn add_card(&mut self, card: usize) {
         self.cards.push_back(card)
+    }
+
+    pub fn clone(&self, len: usize) -> Deck {
+        let mut new_cards = VecDeque::new();
+        for card in self.cards.iter().take(len) {
+            new_cards.push_back(*card);
+        }
+
+        Deck { cards: new_cards }
     }
 
     pub fn hash(&self) -> usize {

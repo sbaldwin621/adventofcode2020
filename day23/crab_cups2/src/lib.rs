@@ -15,12 +15,12 @@ pub fn run(config: Config) -> Result<u32, Box<dyn Error>> {
     
     let mut cup_set = puzzle_input.parse::<CupSet>().unwrap();
 
-    println!("{}", cup_set);
+    for n in 0..10_000_000 {
+        if n % 100_000 == 0 {
+            println!("{}", n);
+        }
 
-    for n in 0..100 {
-        println!("{} {}", n + 1, cup_set);
         cup_set.step();
-        println!();
     }
 
     println!("{:?}", cup_set.answer());

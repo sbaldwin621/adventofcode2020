@@ -5,7 +5,7 @@ use std::str::FromStr;
 use petgraph::data::Build;
 use petgraph::graph::DiGraph;
 use petgraph::graphmap::DiGraphMap;
-use petgraph::visit::Dfs;
+use petgraph::visit::{Dfs, IntoNeighbors};
 
 #[derive(Debug)]
 pub struct CupSet { 
@@ -33,89 +33,46 @@ impl CupSet {
             previous_cup = Some(cup);
         }
 
+        // Rest of the numbers up to 1 million
+        for cup in largest_cup+1..=1_000_000 {
+            cups_graph.add_node(cup);
+            if let Some(previous_cup) = previous_cup {
+                cups_graph.add_edge(previous_cup, cup, ());
+            }
+
+            previous_cup = Some(cup);
+        }
+
         if let Some(previous_cup) = previous_cup {
             cups_graph.add_edge(previous_cup, current_cup, ());
         }
 
-        CupSet { cups: cups_graph, current_cup, smallest_cup, largest_cup }
+        CupSet { cups: cups_graph, current_cup, smallest_cup, largest_cup: 1_000_000 }
     }
 
     pub fn step(&mut self) {
         let picked_up_cups = self.pick_up_cups();
         let (first, second, third) = picked_up_cups;
 
-        println!("pick up: {}, {}, {}", first, second, third);
-
         let destination = self.find_destination_cup(picked_up_cups);
 
-        println!("destination: {}", destination);
-
-        let mut dfs = Dfs::new(&self.cups, destination);
-        dfs.next(&self.cups);
-        
-        let next = dfs.next(&self.cups).unwrap();
+        let next = self.next_cup(destination);
 
         self.cups.remove_edge(destination, next);
         self.cups.add_edge(destination, first, ());
         self.cups.add_edge(third, next, ());
 
-        // Traverse from current cup to find next cup
-        let mut dfs = Dfs::new(&self.cups, self.current_cup);
-        dfs.next(&self.cups);
-
-        self.current_cup = dfs.next(&self.cups).unwrap();
-
-        // println!("pick up {:?}", picked_up_cups);
-
-        // let destination_index = self.find_destination_cup() + 1;
-
-        // for &cup in picked_up_cups.iter().rev() {
-        //     self.cups.insert(destination_index, cup);
-        // }
-
-        // let new_current_cup_index = (self.find_current_cup() + 1) % self.cups.len();
-        // self.current_cup = self.cups[new_current_cup_index];
+        self.current_cup = self.next_cup(self.current_cup);
     }
 
     pub fn answer(&self) -> String {
         let mut dfs = Dfs::new(&self.cups, 1);
         dfs.next(&self.cups);
 
+        let first: u64 = dfs.next(&self.cups).unwrap().into();
+        let second: u64 = dfs.next(&self.cups).unwrap().into();
 
-        let mut answer = String::with_capacity(self.cups.node_count() - 1);
-
-        while let Some(cup) = dfs.next(&self.cups) {
-            if cup == 1 {
-                break;
-            }
-
-            answer.push_str(&cup.to_string());
-        }
-
-        answer
-
-        // let count = self.cups.len();
-        // let mut answer = String::with_capacity(count - 1);
-        
-        // let one = self.find_cup(1) + 1;
-        // for i in one..one+count-1 {
-        //     let cup = self.cups[i % count];
-        //     answer.push_str(&cup.to_string());
-        // }
-
-        // answer
-    }
-
-    fn find_cup(&self, value: u32) -> usize {
-        todo!()
-        
-        // self.cups.iter().position(|&i| i == value).unwrap()
-    }
-
-    fn find_current_cup(&self) -> usize {
-        todo!()
-
-        // self.find_cup(self.current_cup)
+        (first * second).to_string()
     }
 
     fn find_destination_cup(&self, picked_up_cups: (u32, u32, u32)) -> u32 {
@@ -132,17 +89,18 @@ impl CupSet {
         }
     }
 
+    fn next_cup(&self, cup: u32) -> u32 {
+        self.cups.neighbors(cup).nth(0).unwrap()
+    }
+
     fn pick_up_cups(&mut self) -> (u32, u32, u32) {
         let current_cup = self.current_cup;
         
-        let mut dfs = Dfs::new(&self.cups, current_cup);
-        dfs.next(&self.cups).unwrap();
-
-        let first = dfs.next(&self.cups).unwrap();
-        let second = dfs.next(&self.cups).unwrap();
-        let third = dfs.next(&self.cups).unwrap();
+        let first = self.next_cup(current_cup);
+        let second = self.next_cup(first);
+        let third = self.next_cup(second);
         
-        let next = dfs.next(&self.cups).unwrap();
+        let next =  self.next_cup(third);
 
         // Disconnect the three cups from the graph
         self.cups.remove_edge(current_cup, first);
